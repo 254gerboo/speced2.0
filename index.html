@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fast Clone — Speed Test</title>
+  <link rel="stylesheet" href="/public/css/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>speedtest-lite</h1>
+      <p class="sub">Simple network speed test (download • upload • latency)</p>
+    </header>
+
+    <main>
+      <div class="meter">
+        <div id="speed" class="speed">0 Mbps</div>
+        <div class="controls">
+          <button id="startBtn">Start Test</button>
+          <button id="showMore">Show More</button>
+        </div>
+        <div id="gauge" class="gauge"></div>
+      </div>
+
+      <div id="details" class="details hidden">
+        <div>Latency: <span id="latency">-- ms</span></div>
+        <div>Loaded Latency: <span id="loadedLatency">-- ms</span></div>
+        <div>Upload: <span id="upload">-- Mbps</span></div>
+      </div>
+
+      <div id="status" class="status"></div>
+    </main>
+
+    <footer>
+      <small>Built for learning — not affiliated with Netflix.</small>
+    </footer>
+  </div>
+
+  <script src="/public/js/app.js"></script>
+</body>
+</html>
