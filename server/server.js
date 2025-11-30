@@ -34,4 +34,4 @@ app.post('/server/upload', express.raw({type:'*/*', limit:'200mb'}),(req,res)=>{
   res.json({receivedBytes:req.body.length});
 });
 
-app.listen(3000,()=>console.log('Fast clone running http://localhost:3000'));
+app.listen(3000,()=>console.log('speedtest-lite running http://localhost:3000'));

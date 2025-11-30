@@ -1,4 +1,4 @@
-# Fast.com Clone
+# speedtest-lite
 Simple speed test clone (download, upload, latency). Node.js + Express backend that generates test data on the fly.
 
 ## Requirements
