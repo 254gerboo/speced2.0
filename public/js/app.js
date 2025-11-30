@@ -1,83 +1,74 @@
 const startBtn = document.getElementById('startBtn');
-const showMoreBtn = document.getElementById('showMore');
 const speedEl = document.getElementById('speed');
 const statusEl = document.getElementById('status');
 const latencyEl = document.getElementById('latency');
-const loadedLatencyEl = document.getElementById('loadedLatency');
-const uploadEl = document.getElementById('upload');
 const detailsEl = document.getElementById('details');
 
-function animateSpeed(resultEl, targetSpeed){
-    let current = 0;
-    const step = targetSpeed / 50; // adjust smoothness
-    const interval = setInterval(()=>{
+const BASE_URL = 'https://speedtest-worker.gerboo676.workers.dev';
+
+// Animate Mbps smoothly
+function animateSpeed(el, target){
+    let current = parseFloat(el.textContent) || 0;
+    const step = target / 50;
+    const interval = setInterval(() => {
         current += step;
-        if(current >= targetSpeed){
-            current = targetSpeed;
+        if(current >= target){
+            current = target;
             clearInterval(interval);
         }
-        resultEl.textContent = current.toFixed(1)+' Mbps';
-    }, 20); // adjust speed of counting
+        el.textContent = current.toFixed(1) + ' Mbps';
+    }, 20);
 }
 
-async function measurePing(url){
-  const attempts = 6;
-  let total = 0;
-  for(let i=0;i<attempts;i++){
-    const t0 = performance.now();
-    await fetch(url + '&_=' + Date.now(), {cache: 'no-store'});
-    const t1 = performance.now();
-    total += (t1 - t0);
-  }
-  return total / attempts;
+// Measure latency/ping
+async function measurePing(){
+    const attempts = 6;
+    let total = 0;
+    for(let i = 0; i < attempts; i++){
+        const start = performance.now();
+        await fetch(`${BASE_URL}/health`, {cache:'no-store', mode:'cors'});
+        const end = performance.now();
+        total += (end - start);
+    }
+    return total / attempts;
 }
 
-async function downloadTest(url){
-  const res = await fetch(url, {cache: 'no-store'});
-  const reader = res.body.getReader();
-  const start = performance.now();
-  let received = 0;
-  while(true){
-    const {done, value} = await reader.read();
-    if(done) break;
-    received += value.length;
-    const seconds = (performance.now() - start) / 1000;
-    const mbps = ((received * 8) / 1e6) / seconds;
-    animateSpeed(speedEl, mbps);
-  }
-  const seconds = (performance.now() - start) / 1000;
-  return ((received * 8) / 1e6) / seconds;
+// Download test (real-time)
+async function downloadTest(){
+    const res = await fetch(`${BASE_URL}/download`, {cache:'no-store', mode:'cors'});
+    const reader = res.body.getReader();
+    let received = 0;
+    const start = performance.now();
+
+    while(true){
+        const {done, value} = await reader.read();
+        if(done) break;
+        received += value.length;
+        const seconds = (performance.now() - start) / 1000;
+        const mbps = ((received * 8) / 1e6) / seconds;
+        animateSpeed(speedEl, mbps);
+    }
+
+    return ((received * 8) / 1e6) / ((performance.now() - start)/1000);
 }
 
-async function uploadTest(url, sizeMB){
-  const chunk = new Uint8Array(1024*1024);
-  const parts = [];
-  for(let i=0;i<sizeMB;i++) parts.push(chunk);
-  const body = new Blob(parts);
-
-  const start = performance.now();
-  const resp = await fetch(url, {method:'POST', body});
-  const seconds = (performance.now() - start)/1000;
-  return ((body.size * 8)/1e6)/seconds;
-}
-
+// Start button click
 startBtn.addEventListener('click', async () => {
-  startBtn.disabled = true;
-  statusEl.textContent = 'Running...';
+    startBtn.disabled = true;
+    statusEl.textContent = 'Running...';
 
-  const idle = await measurePing('/server/ping');
-  latencyEl.textContent = idle.toFixed(1)+' ms';
+    try {
+        const ping = await measurePing();
+        latencyEl.textContent = ping.toFixed(1) + ' ms';
 
-  const d = await downloadTest('/server/testfile?size=20');
-  animateSpeed(speedEl, d);
+        await downloadTest();
 
-  const loaded = await measurePing('/server/ping?load=1');
-  loadedLatencyEl.textContent = loaded.toFixed(1)+' ms';
+        detailsEl.classList.remove('hidden');
+        statusEl.textContent = 'Done';
+    } catch(e){
+        console.error(e);
+        statusEl.textContent = 'Error';
+    }
 
-  const u = await uploadTest('/server/upload', 5);
-  uploadEl.textContent = u.toFixed(2)+' Mbps';
-
-  detailsEl.classList.remove('hidden');
-  statusEl.textContent = 'Done';
-  startBtn.disabled = false;
+    startBtn.disabled = false;
 });
