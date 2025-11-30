@@ -26,7 +26,10 @@ async function measurePing(){
     let total = 0;
     for(let i = 0; i < attempts; i++){
         const start = performance.now();
-        await fetch(`${BASE_URL}/health`, {cache:'no-store', mode:'cors'});
+        await fetch(`${BASE_URL}/server/ping`, {
+            cache: 'no-store',
+            mode: 'cors'
+        });
         const end = performance.now();
         total += (end - start);
     }
@@ -35,7 +38,11 @@ async function measurePing(){
 
 // Download test (real-time)
 async function downloadTest(){
-    const res = await fetch(`${BASE_URL}/download`, {cache:'no-store', mode:'cors'});
+    const res = await fetch(`${BASE_URL}/download`, {
+        cache: 'no-store',
+        mode: 'cors'
+    });
+
     const reader = res.body.getReader();
     let received = 0;
     const start = performance.now();
@@ -44,8 +51,10 @@ async function downloadTest(){
         const {done, value} = await reader.read();
         if(done) break;
         received += value.length;
+
         const seconds = (performance.now() - start) / 1000;
         const mbps = ((received * 8) / 1e6) / seconds;
+
         animateSpeed(speedEl, mbps);
     }
 
