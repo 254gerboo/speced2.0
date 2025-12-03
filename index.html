@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>speedtest-lite</title>
-  <link rel="stylesheet" href="/public/css/style.css" />
+
+  <!-- FIXED PATH (remove leading / so public folder is reachable) -->
+  <link rel="stylesheet" href="public/css/style.css" />
 </head>
 <body>
   <div class="wrap">
@@ -16,27 +18,33 @@
     <main>
       <div class="meter">
         <div id="speed" class="speed">0 Mbps</div>
+
         <div class="controls">
           <button id="startBtn">Start Test</button>
           <button id="showMore">Show More</button>
         </div>
+
         <div id="gauge" class="gauge"></div>
       </div>
 
+      <!-- DETAILS BOX (Initially hidden) -->
       <div id="details" class="details hidden">
         <div>Latency: <span id="latency">-- ms</span></div>
         <div>Loaded Latency: <span id="loadedLatency">-- ms</span></div>
         <div>Upload: <span id="upload">-- Mbps</span></div>
+        <div>IP Address: <span id="ip">--</span></div>
+        <div>Server: <span id="server">--</span></div>
       </div>
 
       <div id="status" class="status"></div>
     </main>
 
     <footer>
-      <small>Built for learning — not affiliated with Netflix.</small>
+      <small>Built for learning — powered by gerboo.</small>
     </footer>
   </div>
 
-  <script src="/public/js/app.js"></script>
+  <!-- FIXED PATH -->
+  <script src="public/js/app.js"></script>
 </body>
 </html>
