@@ -129,7 +129,7 @@ startBtn.addEventListener('click', async () => {
         statusEl.textContent = 'Done';
     } catch (err) {
         console.error(err);
-        statusEl.textContent = 'Error';
+        statusEl.textContent = 'could not connect to the server';
     } finally {
         startBtn.disabled = false;
     }
