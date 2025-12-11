@@ -12,128 +12,130 @@ const gauge = document.getElementById('gauge');
 
 const BASE_URL = 'https://speedtest-worker.gerboo676.workers.dev';
 
-// Smooth animation only for UI
-function animateSpeed(el, mbps) {
-    el.textContent = mbps.toFixed(1) + ' Mbps';
-}
+// Animate Mbps smoothly
+function animateSpeed(el, target) {
+    let current = parseFloat(el.textContent) || 0;
+    const step = target / 50;
 
-// Gauge color
-function updateGaugeColor(speed) {
-    if (speed < 5) gauge.style.backgroundColor = "#ff3b30";
-    else if (speed < 15) gauge.style.backgroundColor = "#ff9500";
-    else if (speed < 30) gauge.style.backgroundColor = "#ffcc00";
-    else if (speed < 60) gauge.style.backgroundColor = "#4cd964";
-    else gauge.style.backgroundColor = "#34c759";
-}
-
-// More accurate latency
-async function measurePing() {
-    let samples = [];
-
-    for (let i = 0; i < 8; i++) {
-        let start = performance.now();
-        await fetch(`${BASE_URL}/server/ping`, { cache: 'no-store' });
-        samples.push(performance.now() - start);
-    }
-
-    samples.sort();
-    samples = samples.slice(2, 6); // remove highest & lowest outliers
-
-    return samples.reduce((a, b) => a + b) / samples.length;
-}
-
-// Parallel download like Fast.com
-async function downloadTest() {
-    const connections = 4;
-    const testDuration = 6000; // 6 seconds
-    const fileURL = `${BASE_URL}/download`;
-
-    let totalBytes = 0;
-    let stop = false;
-
-    setTimeout(() => stop = true, testDuration);
-
-    async function downloadStream() {
-        while (!stop) {
-            let res = await fetch(fileURL, { cache: 'no-store' });
-            let reader = res.body.getReader();
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done || stop) break;
-
-                totalBytes += value.length;
-            }
+    const interval = setInterval(() => {
+        current += step;
+        if (current >= target) {
+            current = target;
+            clearInterval(interval);
         }
-    }
-
-    const start = performance.now();
-    await Promise.all(new Array(connections).fill(0).map(downloadStream));
-    const end = performance.now();
-
-    const seconds = (end - start) / 1000;
-    const mbps = (totalBytes * 8) / 1e6 / seconds;
-
-    return mbps;
+        el.textContent = current.toFixed(1) + ' Mbps';
+        updateGaugeColor(current);
+    }, 20);
 }
 
-// Larger upload for accuracy
+// Set gauge color based on speed
+function updateGaugeColor(speed) {
+    if (speed < 5) gauge.style.backgroundColor = "#ff3b30";   // red
+    else if (speed < 15) gauge.style.backgroundColor = "#ff9500";   // orange
+    else if (speed < 30) gauge.style.backgroundColor = "#ffcc00";   // yellow
+    else if (speed < 60) gauge.style.backgroundColor = "#4cd964";   // light green
+    else gauge.style.backgroundColor = "#34c759";   // green
+}
+
+// Measure latency
+async function measurePing() {
+    const attempts = 6;
+    let total = 0;
+
+    for (let i = 0; i < attempts; i++) {
+        const start = performance.now();
+        await fetch(`${BASE_URL}/server/ping`, { cache: 'no-store', mode: 'cors' });
+        const end = performance.now();
+        total += (end - start);
+    }
+
+    return total / attempts;
+}
+
+// Download test
+async function downloadTest() {
+    const res = await fetch(`${BASE_URL}/download`, { cache: 'no-store', mode: 'cors' });
+    const reader = res.body.getReader();
+    let received = 0;
+    const start = performance.now();
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        received += value.length;
+        const seconds = (performance.now() - start) / 1000;
+        const mbps = ((received * 8) / 1e6) / seconds;
+
+        animateSpeed(speedEl, mbps);
+    }
+
+    return ((received * 8) / 1e6) / ((performance.now() - start) / 1000);
+}
+
+// Upload test
 async function uploadTest() {
-    const size = 25 * 1024 * 1024; // 25MB
+    const size = 1024 * 1024 * 5; // 5 MB
     const data = new Uint8Array(size);
 
-    let start = performance.now();
+    const start = performance.now();
     await fetch(`${BASE_URL}/server/upload`, {
-        method: "POST",
+        method: 'POST',
         body: data,
-        cache: "no-store"
+        cache: 'no-store',
+        mode: 'cors'
     });
-    let end = performance.now();
+    const end = performance.now();
 
-    return (size * 8) / 1e6 / ((end - start) / 1000);
+    const mbps = (size * 8) / 1e6 / ((end - start) / 1000);
+    uploadEl.textContent = mbps.toFixed(1) + ' Mbps';
 }
 
-// IP info
+// Get IP & nearest server info
 async function getServerInfo() {
-    const res = await fetch("https://ip-api.com/json/");
-    const data = await res.json();
-    ipEl.textContent = data.query || "Unknown";
-    serverEl.textContent = `${data.city || '-'} • ${data.isp || '-'}`;
+    try {
+        const res = await fetch('https://ip-api.com/json/');
+        const data = await res.json();
+        ipEl.textContent = data.query || 'Unknown IP';
+        serverEl.textContent = `${data.city || 'Unknown City'} • ${data.isp || 'Unknown ISP'}`;
+    } catch (err) {
+        console.error('Failed to get server info', err);
+        ipEl.textContent = 'Unknown';
+        serverEl.textContent = 'Unknown';
+    }
 }
 
-// START TEST
-startBtn.addEventListener("click", async () => {
+// Start button click
+startBtn.addEventListener('click', async () => {
     startBtn.disabled = true;
-    statusEl.textContent = "Running...";
-    speedEl.textContent = "0 Mbps";
+    statusEl.textContent = 'Running...';
+    speedEl.textContent = '0 Mbps';
+    loadedLatencyEl.textContent = '-- ms';
+    uploadEl.textContent = '-- Mbps';
     updateGaugeColor(0);
 
     try {
         const ping = await measurePing();
-        latencyEl.textContent = ping.toFixed(1) + " ms";
+        latencyEl.textContent = ping.toFixed(1) + ' ms';
 
-        const downloadMbps = await downloadTest();
-        animateSpeed(speedEl, downloadMbps);
-        updateGaugeColor(downloadMbps);
+        await downloadTest();
+        loadedLatencyEl.textContent = ping.toFixed(1) + ' ms';
 
-        loadedLatencyEl.textContent = ping.toFixed(1) + " ms";
+        await uploadTest();
 
-        const uploadMbps = await uploadTest();
-        uploadEl.textContent = uploadMbps.toFixed(1) + " Mbps";
+        await getServerInfo(); // fetch IP and server info
 
-        await getServerInfo();
-
-        detailsEl.classList.remove("hidden");
-        statusEl.textContent = "Done";
+        detailsEl.classList.remove('hidden');
+        statusEl.textContent = 'Done';
     } catch (err) {
-        statusEl.textContent = "Error: Could not connect,connect to the internet and try again.";
         console.error(err);
+        statusEl.textContent = 'could not connect to the server. plese connect to the internet and try again';
+    } finally {
+        startBtn.disabled = false;
     }
-
-    startBtn.disabled = false;
 });
 
-// toggle more info
+// Show More button
 showMoreBtn.addEventListener('click', () => {
     detailsEl.classList.toggle('hidden');
 });
