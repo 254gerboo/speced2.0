@@ -139,3 +139,20 @@ startBtn.addEventListener('click', async () => {
 showMoreBtn.addEventListener('click', () => {
     detailsEl.classList.toggle('hidden');
 });
+// Snow generator
+function createSnowflake() {
+    const snow = document.createElement('div');
+    snow.className = 'snowflake';
+    snow.textContent = '❄'; // Unicode snowflake
+    snow.style.left = Math.random() * window.innerWidth + 'px';
+    snow.style.fontSize = (10 + Math.random() * 20) + 'px';
+    snow.style.animationDuration = (5 + Math.random() * 5) + 's';
+    snow.style.opacity = Math.random();
+    document.getElementById('snow').appendChild(snow);
+
+    // Remove snowflake after animation
+    setTimeout(() => snow.remove(), 10000);
+}
+
+// Generate snow every 200ms
+setInterval(createSnowflake, 200);
