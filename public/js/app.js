@@ -10,133 +10,268 @@ const serverEl = document.getElementById('server');
 const detailsEl = document.getElementById('details');
 const gauge = document.getElementById('gauge');
 
+/* SPEEDOMETER */
+
+const canvas = document.getElementById("speedometer");
+const ctx = canvas.getContext("2d");
+
+const centerX = canvas.width / 2;
+const centerY = canvas.height;
+const radius = 110;
+
+function drawGauge(speed){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+/* background arc */
+
+ctx.beginPath();
+ctx.arc(centerX,centerY,radius,Math.PI,0);
+ctx.lineWidth = 12;
+ctx.strokeStyle = "#1e293b";
+ctx.stroke();
+
+/* speed arc */
+
+let percent = Math.min(speed/100,1);
+
+ctx.beginPath();
+ctx.arc(
+centerX,
+centerY,
+radius,
+Math.PI,
+Math.PI + (Math.PI*percent)
+);
+
+ctx.lineWidth = 12;
+ctx.strokeStyle = "#00f2ff";
+ctx.stroke();
+
+}
+
+/* API */
+
 const BASE_URL = 'https://speedtest-worker.gerboo676.workers.dev';
 
-// Animate Mbps smoothly
-function animateSpeed(el, target) {
-    let current = parseFloat(el.textContent) || 0;
-    const step = target / 50;
+let displayedSpeed = 0;
 
-    const interval = setInterval(() => {
-        current += step;
-        if (current >= target) {
-            current = target;
-            clearInterval(interval);
-        }
-        el.textContent = current.toFixed(1) + ' Mbps';
-        updateGaugeColor(current);
-    }, 20);
+/* Smooth animation */
+
+function animateSpeed(target){
+
+const step = (target - displayedSpeed) * 0.2;
+
+displayedSpeed += step;
+
+if(displayedSpeed < 0) displayedSpeed = 0;
+
+speedEl.textContent = displayedSpeed.toFixed(1) + " Mbps";
+
+updateGauge(displayedSpeed);
+
+drawGauge(displayedSpeed);
+
+if(Math.abs(displayedSpeed - target) > 0.1){
+requestAnimationFrame(()=>animateSpeed(target));
 }
 
-// Set gauge color based on speed
-function updateGaugeColor(speed) {
-    if (speed < 5) gauge.style.backgroundColor = "#ff3b30";   // red
-    else if (speed < 15) gauge.style.backgroundColor = "#ff9500";   // orange
-    else if (speed < 30) gauge.style.backgroundColor = "#ffcc00";   // yellow
-    else if (speed < 60) gauge.style.backgroundColor = "#4cd964";   // light green
-    else gauge.style.backgroundColor = "#34c759";   // green
 }
 
-// Measure latency
-async function measurePing() {
-    const attempts = 6;
-    let total = 0;
+/* Progress bar */
 
-    for (let i = 0; i < attempts; i++) {
-        const start = performance.now();
-        await fetch(`${BASE_URL}/server/ping`, { cache: 'no-store', mode: 'cors' });
-        const end = performance.now();
-        total += (end - start);
-    }
+function updateGauge(speed){
 
-    return total / attempts;
+let percent = Math.min(speed / 100 * 100,100);
+
+gauge.style.background =
+`linear-gradient(90deg,
+#00f2ff ${percent}%,
+#1e293b ${percent}%)`;
+
 }
 
-// Download test
-async function downloadTest() {
-    const res = await fetch(`${BASE_URL}/download`, { cache: 'no-store', mode: 'cors' });
-    const reader = res.body.getReader();
-    let received = 0;
-    const start = performance.now();
+/* Ping */
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+async function measurePing(){
 
-        received += value.length;
-        const seconds = (performance.now() - start) / 1000;
-        const mbps = ((received * 8) / 1e6) / seconds;
+const attempts = 6;
+let total = 0;
 
-        animateSpeed(speedEl, mbps);
-    }
+for(let i=0;i<attempts;i++){
 
-    return ((received * 8) / 1e6) / ((performance.now() - start) / 1000);
+const start = performance.now();
+
+await fetch(`${BASE_URL}/server/ping`,
+{cache:'no-store',mode:'cors'});
+
+const end = performance.now();
+
+total += (end-start);
+
 }
 
-// Upload test
-async function uploadTest() {
-    const size = 1024 * 1024 * 5; // 5 MB
-    const data = new Uint8Array(size);
+return total/attempts;
 
-    const start = performance.now();
-    await fetch(`${BASE_URL}/server/upload`, {
-        method: 'POST',
-        body: data,
-        cache: 'no-store',
-        mode: 'cors'
-    });
-    const end = performance.now();
-
-    const mbps = (size * 8) / 1e6 / ((end - start) / 1000);
-    uploadEl.textContent = mbps.toFixed(1) + ' Mbps';
 }
 
-// Get IP & nearest server info
-async function getServerInfo() {
-    try {
-        const res = await fetch('https://ip-api.com/json/');
-        const data = await res.json();
-        ipEl.textContent = data.query || 'Unknown IP';
-        serverEl.textContent = `${data.city || 'Unknown City'} • ${data.isp || 'Unknown ISP'}`;
-    } catch (err) {
-        console.error('Failed to get server info', err);
-        ipEl.textContent = 'Unknown';
-        serverEl.textContent = 'Unknown';
-    }
+/* Download */
+
+async function downloadTest(){
+
+statusEl.textContent = "Testing download...";
+
+const res = await fetch(`${BASE_URL}/download`,
+{cache:'no-store',mode:'cors'});
+
+const reader = res.body.getReader();
+
+let received = 0;
+
+const start = performance.now();
+
+while(true){
+
+const {done,value} = await reader.read();
+
+if(done) break;
+
+received += value.length;
+
+const seconds =
+(performance.now()-start)/1000;
+
+const mbps =
+((received*8)/1e6)/seconds;
+
+animateSpeed(mbps);
+
 }
 
-// Start button click
-startBtn.addEventListener('click', async () => {
-    startBtn.disabled = true;
-    statusEl.textContent = 'Running...';
-    speedEl.textContent = '0 Mbps';
-    loadedLatencyEl.textContent = '-- ms';
-    uploadEl.textContent = '-- Mbps';
-    updateGaugeColor(0);
+return ((received*8)/1e6) /
+((performance.now()-start)/1000);
 
-    try {
-        const ping = await measurePing();
-        latencyEl.textContent = ping.toFixed(1) + ' ms';
+}
 
-        await downloadTest();
-        loadedLatencyEl.textContent = ping.toFixed(1) + ' ms';
+/* Upload */
 
-        await uploadTest();
+async function uploadTest(){
 
-        await getServerInfo(); // fetch IP and server info
+statusEl.textContent = "Testing upload...";
 
-        detailsEl.classList.remove('hidden');
-        statusEl.textContent = 'Done';
-    } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'could not connect to the server. plese connect to the internet and try again';
-    } finally {
-        startBtn.disabled = false;
-    }
+const size = 1024*1024*5;
+
+const data = new Uint8Array(size);
+
+const start = performance.now();
+
+await fetch(`${BASE_URL}/server/upload`,{
+method:'POST',
+body:data,
+cache:'no-store',
+mode:'cors'
 });
 
-// Show More button
-showMoreBtn.addEventListener('click', () => {
-    detailsEl.classList.toggle('hidden');
+const end = performance.now();
+
+const mbps =
+(size*8)/1e6/((end-start)/1000);
+
+uploadEl.textContent =
+mbps.toFixed(1)+" Mbps";
+
+}
+
+/* IP + ISP */
+
+async function getServerInfo(){
+
+try{
+
+const res =
+await fetch('https://ip-api.com/json/');
+
+const data =
+await res.json();
+
+ipEl.textContent =
+data.query || "Unknown";
+
+serverEl.textContent =
+`${data.city || "Unknown"} • ${data.isp || "Unknown"}`;
+
+}catch(err){
+
+ipEl.textContent="Unknown";
+serverEl.textContent="Unknown";
+
+}
+
+}
+
+/* Start test */
+
+startBtn.addEventListener("click",async()=>{
+
+startBtn.disabled = true;
+
+displayedSpeed = 0;
+
+speedEl.textContent="0 Mbps";
+
+statusEl.textContent="Starting test...";
+
+uploadEl.textContent="-- Mbps";
+
+loadedLatencyEl.textContent="-- ms";
+
+updateGauge(0);
+
+drawGauge(0);
+
+try{
+
+const ping = await measurePing();
+
+latencyEl.textContent =
+ping.toFixed(1)+" ms";
+
+await downloadTest();
+
+loadedLatencyEl.textContent =
+ping.toFixed(1)+" ms";
+
+await uploadTest();
+
+await getServerInfo();
+
+detailsEl.classList.remove("hidden");
+
+statusEl.textContent="Test complete";
+
+}catch(err){
+
+console.error(err);
+
+statusEl.textContent=
+"Connection failed. Please check your internet.";
+
+}finally{
+
+startBtn.disabled=false;
+
+}
+
 });
 
+/* Show more */
+
+showMoreBtn.addEventListener("click",()=>{
+
+detailsEl.classList.toggle("hidden");
+
+});
+
+/* Draw empty gauge on load */
+
+drawGauge(0);
