@@ -198,22 +198,21 @@ async function getServerInfo(){
 
 try{
 
-const res =
-await fetch('https://ip-api.com/json/');
+const res = await fetch("https://ipapi.co/json/");
 
-const data =
-await res.json();
+const data = await res.json();
 
-ipEl.textContent =
-data.query || "Unknown";
+ipEl.textContent = data.ip || "Unknown";
 
 serverEl.textContent =
-`${data.city || "Unknown"} • ${data.isp || "Unknown"}`;
+`${data.city || "Unknown"} • ${data.org || "Unknown ISP"}`;
 
 }catch(err){
 
-ipEl.textContent="Unknown";
-serverEl.textContent="Unknown";
+console.error(err);
+
+ipEl.textContent = "Unknown";
+serverEl.textContent = "Unknown";
 
 }
 
