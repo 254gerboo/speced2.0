@@ -1,12 +1,16 @@
 const startBtn = document.getElementById('startBtn');
 const showMoreBtn = document.getElementById('showMore');
+
 const speedEl = document.getElementById('speed');
 const statusEl = document.getElementById('status');
+
 const latencyEl = document.getElementById('latency');
 const loadedLatencyEl = document.getElementById('loadedLatency');
 const uploadEl = document.getElementById('upload');
+
 const ipEl = document.getElementById('ip');
 const serverEl = document.getElementById('server');
+
 const detailsEl = document.getElementById('details');
 const gauge = document.getElementById('gauge');
 
@@ -44,9 +48,15 @@ Math.PI,
 Math.PI + (Math.PI*percent)
 );
 
-ctx.lineWidth = 12;
+ctx.lineWidth = 14;
+
+ctx.shadowBlur = 20;
+ctx.shadowColor = "#00f2ff";
+
 ctx.strokeStyle = "#00f2ff";
 ctx.stroke();
+
+ctx.shadowBlur = 0;
 
 }
 
@@ -60,9 +70,7 @@ let displayedSpeed = 0;
 
 function animateSpeed(target){
 
-const step = (target - displayedSpeed) * 0.2;
-
-displayedSpeed += step;
+displayedSpeed += (target - displayedSpeed) * 0.15;
 
 if(displayedSpeed < 0) displayedSpeed = 0;
 
@@ -72,8 +80,10 @@ updateGauge(displayedSpeed);
 
 drawGauge(displayedSpeed);
 
-if(Math.abs(displayedSpeed - target) > 0.1){
+if(Math.abs(displayedSpeed - target) > 0.05){
 requestAnimationFrame(()=>animateSpeed(target));
+}else{
+displayedSpeed = target;
 }
 
 }
@@ -82,7 +92,7 @@ requestAnimationFrame(()=>animateSpeed(target));
 
 function updateGauge(speed){
 
-let percent = Math.min(speed / 100 * 100,100);
+let percent = Math.min(speed,100);
 
 gauge.style.background =
 `linear-gradient(90deg,
@@ -136,7 +146,7 @@ const {done,value} = await reader.read();
 
 if(done) break;
 
-received += value.length;
+received += value.byteLength;
 
 const seconds =
 (performance.now()-start)/1000;
@@ -215,18 +225,22 @@ startBtn.addEventListener("click",async()=>{
 
 startBtn.disabled = true;
 
+detailsEl.classList.add("hidden");
+
 displayedSpeed = 0;
 
 speedEl.textContent="0 Mbps";
 
-statusEl.textContent="Starting test...";
+statusEl.textContent="Preparing test...";
 
 uploadEl.textContent="-- Mbps";
-
+latencyEl.textContent="-- ms";
 loadedLatencyEl.textContent="-- ms";
 
-updateGauge(0);
+ipEl.textContent="Detecting...";
+serverEl.textContent="Detecting...";
 
+updateGauge(0);
 drawGauge(0);
 
 try{
